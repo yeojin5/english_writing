@@ -11,7 +11,6 @@
 | 마감 by vs until | 2026-11-06 | 11-06 (미사용) | 2일 | 2026-11-08 |
 | be familiar with (friendly at ❌) | 2026-11-06 | 11-06 ❌ | 2일 | 2026-11-08 |
 | not ~ yet | 2026-11-06 | 11-06 ✅ | 2일 | 2026-11-08 |
-
 | these days (복수 days) | 2026-11-06 | 11-06 ❌ | 2일 | 2026-11-08 |
 | the + of로 특정된 명사 (the experiment section of ~) | 2026-11-06 | 11-06 ❌ | 2일 | 2026-11-08 |
 | the size of the dataset / dataset size (단·복수 일치) | 2026-11-06 | 11-06 ❌ | 2일 | 2026-11-08 |
