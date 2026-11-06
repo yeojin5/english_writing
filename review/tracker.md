@@ -6,12 +6,14 @@
 |---|---|---|---|---|
 | focus on (~에 집중하다) | 2026-11-06 | 11-06 ✅ | 2일 | 2026-11-08 |
 | depend on (~에 따라 달라지다) | 2026-11-06 | 11-06 ✅ | 2일 | 2026-11-08 |
-| be responsible for / be in charge of | 2026-11-06 | (대기) | - | - |
+| be responsible for / be in charge of | 2026-11-06 | 11-06 ❌ (deal with 사용) | 2일 | 2026-11-08 |
 | apply for / apply to, 마감 by vs until | 2026-11-06 | (대기) | - | - |
 | be familiar with | 2026-11-06 | (대기) | - | - |
 
 | these days (복수 days) | 2026-11-06 | 11-06 ❌ | 2일 | 2026-11-08 |
 | the + of로 특정된 명사 (the experiment section of ~) | 2026-11-06 | 11-06 ❌ | 2일 | 2026-11-08 |
 | the size of the dataset / dataset size (단·복수 일치) | 2026-11-06 | 11-06 ❌ | 2일 | 2026-11-08 |
+| in/on a project (of ❌) | 2026-11-06 | 11-06 ❌ | 2일 | 2026-11-08 |
+| 일반 작업명엔 관사 없음 (data preprocessing) | 2026-11-06 | 11-06 ❌ | 2일 | 2026-11-08 |
 
 > 결과 기록: ✅ 맞힘 / ❌ 틀림 (날짜별로 누적)
