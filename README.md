@@ -49,3 +49,11 @@
 - **모든 기록은 `main` 브랜치에 커밋·푸시합니다.** (2026-11-09부터)
 - 매일 시작할 때 `main`을 먼저 pull 해서 이전 기록과 `review/tracker.md`를 이어서 씁니다.
 - 예전 `claude/*` 브랜치들은 작업 이력이며, 내용은 모두 `main`에 들어 있습니다.
+
+## 커밋 작성자 규칙 (잔디 반영)
+- **작성자(author)는 `Oh Yeojin <137872250+yeojin5@users.noreply.github.com>`**, 커미터(committer)는 `Claude <noreply@anthropic.com>`로 합니다. (2026-11-13부터, 이전 커밋도 모두 변경)
+  - GitHub 잔디는 **작성자 이메일** 기준으로 집계됩니다. 커미터를 Claude로 두면 Verified 서명도 유지됩니다.
+- 커밋할 때마다 작성자를 지정합니다:
+  ```
+  git commit --author="Oh Yeojin <137872250+yeojin5@users.noreply.github.com>" -m "..."
+  ```
