@@ -32,14 +32,14 @@
 | 7 | [2026-11-12](daily/2026-11-12.md) | Day 5 복습 응용 + 4일 간격 맞힌 항목 |
 | 8 | [2026-11-13](daily/2026-11-13.md) | Day 6 복습 응용 + 4일 간격 맞힌 항목 (일상 영어 시작) |
 
-## 지금 집중해서 고칠 것 (Day 7 기준)
+## 지금 집중해서 고칠 것 (Day 8 기준)
 자세한 내용은 [`review/tracker.md`](review/tracker.md)에 있습니다.
-- **관사**: 셀 수 있는 단수 명사 앞에 a/the/my 붙이기 (7일 연속 등장)
-- **전치사 짝꿍**: responsible **for**, familiar **with**, apply **for** 자리 / **to** 기관·프로그램, ask A **for** B, **on** a project
-- **시간 표현**: since + 시점, by the end of this month, by 4 p.m. on Thursday
-- **주어와 동사 맞추기**: the performance (of the model) **depends**
-- **형용사 상태엔 be동사**: I'm not familiar / I'm not confident (haven't ❌)
-- **comma splice**: 두 절은 and/so/but로 연결
+- **관사**: 셀 수 있는 단수 명사 앞에 a/the/my 붙이기 (8일 연속). a copy of **the** lease, **a** gym, **the** related work section
+- **주어와 동사 맞추기**: he/she/my advisor **hasn't** (haven't ❌) — 4일 연속
+- **시간 표현**: since + 시점 (from ❌ — 4회째), **a year and a half** (3회째), every + 단수
+- **문장 연결**: comma splice ❌, [상황] but [문제] so [해결] — so와 because 겹치지 않기
+- **동사 선택**: give a presentation (do ❌), move **to** + 장소, join/sign up for a gym
+- **형용사 상태엔 be동사**: I'm not confident about -ing / I'm not sure about
 
 ## 구조
 - `daily/`: 날짜별 연습 기록 (예문, 내 문장, 교정, 틀린 표현, 학습할 부분, 그날의 정리)
