@@ -33,14 +33,14 @@
 | 8 | [2026-11-13](daily/2026-11-13.md) | Day 6 복습 응용 + 4일 간격 맞힌 항목 (일상 영어 시작) |
 | 9 | [2026-11-14](daily/2026-11-14.md) | Day 7 복습 응용 (월세·집안일·아르바이트·휴대폰) |
 
-## 지금 집중해서 고칠 것 (Day 8 기준)
+## 지금 집중해서 고칠 것 (Day 9 기준)
 자세한 내용은 [`review/tracker.md`](review/tracker.md)에 있습니다.
-- **관사**: 셀 수 있는 단수 명사 앞에 a/the/my 붙이기 (8일 연속). a copy of **the** lease, **a** gym, **the** related work section
-- **주어와 동사 맞추기**: he/she/my advisor **hasn't** (haven't ❌) — 4일 연속
-- **시간 표현**: since + 시점 (from ❌ — 4회째), **a year and a half** (3회째), every + 단수
-- **문장 연결**: comma splice ❌, [상황] but [문제] so [해결] — so와 because 겹치지 않기
-- **동사 선택**: give a presentation (do ❌), move **to** + 장소, join/sign up for a gym
-- **형용사 상태엔 be동사**: I'm not confident about -ing / I'm not sure about
+- **관사**: 셀 수 있는 단수 명사 앞에 a/the/my 붙이기 (9일 연속). do **the** dishes, **a** recommendation letter, **an** internship, of **the** screen
+- **문장 연결**: comma splice ❌ (Day 9에 3문장 연속) → 쉼표 뒤 and/but/so
+- **기한 by**: by **the end of** this month (last of ❌ 4회), by 3 p.m. **on** Friday (since/at ❌)
+- **전치사 짝꿍**: be responsible **for** + -ing (to ❌ 3회), apply **for** + 자리, a recommendation letter (letter for ❌ 4회)
+- **부정 not 누락 주의**: I'm **not** familiar with ~ yet (I've been familiar ❌ — 뜻 반대)
+- 👏 회복: familiar with, apply for jobs at, depends heavily on, still haven't p.p.
 
 ## 구조
 - `daily/`: 날짜별 연습 기록 (예문, 내 문장, 교정, 틀린 표현, 학습할 부분, 그날의 정리)
