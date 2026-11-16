@@ -99,6 +99,8 @@
 | 연구소 = research institute (lab = 연구실) | 2026-11-14 | 11-14 ❌ (the lab internship) | 2일 | 2026-11-16 |
 
 > 결과 기록: ✅ 맞힘 / ❌ 틀림 / △ 부분적 (날짜별로 누적)
+>
+> ⏸ 11-15(Day 10) 미응답 — 11-14·11-15 예정 항목은 아직 결과 없음. 핵심(It's been ~ since, a year and a half, since + 시점, 주어-동사 일치, reply to)은 11-16 Day 11에 이월 출제, 나머지는 11-17 이후 순차 출제.
 
 ## 반복 실수 패턴 (누적)
 - 관사 누락/과잉, 셀 수 있는 단수 명사 단독 (11-06: 2회, 11-07: 1회, 11-08: 3회, 11-09: 3회, 11-10: 5회 — 누락 3 + 과잉 2, 11-11: 4회 advisor ×2, last question, lab seminar, 11-12: 3회 of model, two university, undergrade interns, 11-13: 4회 the gym→a gym, short presentation, the copy of lease, related work section, 11-14: 5회 wash dishes, houseshore, of display, the letters, the lab intership) ← 9일 연속, 최우선
