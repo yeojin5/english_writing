@@ -61,7 +61,11 @@ LESSON_ENDPOINTS = {
     "fluency": API + "/v5/student/focus/lessons/{lesson_id}/fluency",
     "script": API + "/v4/student/lesson_record/{lesson_id}/script",          # 대화 스크립트 (md 에는 안 넣음)
 }
-REQUIRED = {"lesson"}  # 나머지는 예전 수업엔 없을 수 있어서 실패해도 넘어감
+REQUIRED = {"lesson"}
+# 로그인해야만 성공하는 요청 — 이게 200이면 로그인 상태, 그 요청 헤더를 그대로 따라 씀
+# (student/geolocation 처럼 로그인 없이도 200 이 나오는 요청은 제외)
+AUTH_URL = re.compile(r"api\.ringleplus\.com/api/v\d+/(users/me|student/lessons?/)")
+DROP_HEADERS = {"host", "content-length", "cookie", "accept-encoding", "connection", "content-type"}  # 나머지는 예전 수업엔 없을 수 있어서 실패해도 넘어감
 DEFAULT_LIST_URL = API + "/v5/student/lessons/past?year={year}&month={month}&type=entire"
 
 
@@ -134,24 +138,28 @@ class Browser:
         except Exception:
             self.ctx = self._pw.chromium.launch_persistent_context(**kwargs)
         self.page = self.ctx.pages[0] if self.ctx.pages else self.ctx.new_page()
-        self.auth: dict[str, dict] = {}  # host -> {header: value}
+        self.auth_headers: dict | None = None  # 로그인이 필요한 요청에 페이지가 실어 보낸 헤더
+        self.auth_failed = False
         self.captured: list[dict] = []
-        self.ctx.on("request", self._on_request)
         self.ctx.on("response", self._on_response)
-
-    def _on_request(self, req) -> None:
-        host = urlsplit(req.url).netloc
-        if "ringleplus.com" not in host:
-            return
-        h = {k: v for k, v in req.headers.items() if k.lower() in ("authorization", "x-auth-token", "x-access-token")}
-        if h:
-            self.auth[host] = h
 
     def _on_response(self, resp) -> None:
         if resp.request.resource_type not in ("xhr", "fetch"):
             return
         if "ringleplus.com" not in resp.url:
             return
+        if AUTH_URL.search(resp.url) and resp.request.method == "GET":
+            if 200 <= resp.status < 300:
+                try:
+                    h = {k: v for k, v in resp.request.all_headers().items()
+                         if not k.startswith(":") and k.lower() not in DROP_HEADERS}
+                    if self.auth_headers is None:
+                        log(f"로그인 확인 ({urlsplit(resp.url).path}) — 헤더: {', '.join(sorted(h))}")
+                    self.auth_headers = h
+                except Exception:
+                    pass
+            elif resp.status in (401, 403):
+                self.auth_failed = True
         try:
             body = resp.json()
         except Exception:
@@ -189,22 +197,14 @@ class Browser:
         except Exception as e:
             log(f"페이지 열기 지연: {e.__class__.__name__}")
 
-    def api_status(self) -> int | None:
-        """페이지가 부른 api.ringleplus.com 응답으로 로그인 여부 판단."""
-        for c in reversed(self.captured):
-            if "api.ringleplus.com" in c["url"]:
-                return c["status"]
-        return None
-
     def logged_in(self, wait: float = 20) -> bool:
         end = time.time() + wait
         while time.time() < end:
             if re.search(r"login|sign_?in|signin|kauth\.kakao", self.page.url, re.I):
                 return False
-            st = self.api_status()
-            if st is not None and 200 <= st < 300:
+            if self.auth_headers is not None:   # 로그인이 필요한 요청이 성공함
                 return True
-            if st in (401, 403):
+            if self.auth_failed:
                 return False
             self.pump(0.5)
         return False
@@ -214,7 +214,11 @@ class Browser:
             "text=/카카오/", "[alt*='카카오']", "[alt*='kakao' i]", "a[href*='kakao']",
             "button[class*='kakao' i]", "[class*='kakao' i]",
         ]
-        if "login" not in self.page.url.lower():
+        login_url = load_json(CONFIG, {}).get("login_url")
+        if login_url:  # 카카오 버튼이 바로 보이는 로그인 페이지
+            self.goto(login_url)
+            self.pump(2)
+        elif "login" not in self.page.url.lower():
             self.goto("https://www.ringleplus.com/ko/student/landing/home")
             self.pump(2)
             for txt in ("로그인", "Log in", "Login"):
@@ -253,11 +257,18 @@ class Browser:
 
     # ── API ──
     def get_json(self, url: str):
-        host = urlsplit(url).netloc
-        headers = dict(self.auth.get(host) or self.auth.get("api.ringleplus.com")
-                       or next(iter(self.auth.values()), {}))
+        headers = dict(self.auth_headers or {}) if "api.ringleplus.com" in url else {}
         r = self.ctx.request.get(url, headers=headers, timeout=30_000)
         if r.status in (401, 403):
+            # 쿠키 방식일 수도 있으니 페이지 안에서 한 번 더 시도
+            res = self.page.evaluate(
+                """async ([u, h]) => { const r = await fetch(u, {headers: h, credentials: 'include'});
+                     return {status: r.status, text: await r.text()}; }""", [url, headers])
+            if 200 <= res["status"] < 300:
+                try:
+                    return json.loads(res["text"])
+                except json.JSONDecodeError:
+                    return {"_raw_text": res["text"]}
             raise PermissionError(f"{r.status} {url}")
         if not r.ok:
             raise RuntimeError(f"{r.status} {url}")
