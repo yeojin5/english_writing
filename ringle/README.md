@@ -23,8 +23,8 @@ python -m playwright install chromium   # Chrome이 설치돼 있으면 Chrome�
 # 2) 로그인: 브라우저 창이 뜨면 카카오로 링글에 로그인 → 터미널에서 Enter
 python ringle/ringle_sync.py setup
 
-# 3) 주소 수집: 창이 뜨면 안내대로 이전 달로 넘겼다 돌아오고, 수업 하나의
-#    피드백·AI 분석·노트 탭을 모두 연 뒤 그 수업 번호를 입력
+# 3) 주소 수집: 창이 뜨면 이전 달로 넘겼다 돌아오고, 수업 하나의
+#    피드백·AI 분석·노트 탭을 모두 누른 뒤 브라우저 창을 닫기
 python ringle/ringle_sync.py discover
 
 # 4) 지난 기록 전체 가져오기 (처음 링글을 시작한 달부터)

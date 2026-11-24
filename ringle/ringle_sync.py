@@ -147,8 +147,21 @@ class Browser:
     def close(self) -> None:
         try:
             self.ctx.close()
+        except Exception:
+            pass
         finally:
             self._pw.stop()
+
+    def wait_until_closed(self, max_minutes: int = 30) -> None:
+        """사용자가 브라우저 창을 닫을 때까지 요청을 기록하며 기다리기."""
+        end = time.time() + max_minutes * 60
+        while time.time() < end:
+            try:
+                if not self.ctx.pages:
+                    return
+                self.ctx.pages[0].wait_for_timeout(300)
+            except Exception:
+                return
 
     # ── 로그인 ──
     def pump(self, seconds: float) -> None:
@@ -219,7 +232,7 @@ class Browser:
         if self.logged_in():
             return True
         if interactive:
-            wait_for_enter(self, "\n브라우저 창에서 카카오로 링글에 로그인하고 수업 리뷰 페이지를 열어 주세요. 다 되면 여기서 Enter: ")
+            input("\n브라우저 창에서 카카오로 링글에 로그인하고 수업 리뷰 페이지를 열어 주세요. 다 되면 여기서 Enter: ")
             self.goto(review)
             return self.logged_in()
         return False
@@ -239,19 +252,6 @@ class Browser:
         except Exception:
             return {"_raw_text": r.text()}
 
-
-def wait_for_enter(b: "Browser", prompt: str) -> str:
-    """사용자 입력을 기다리는 동안에도 브라우저 요청을 계속 기록합니다."""
-    import threading
-    box: dict = {}
-    t = threading.Thread(target=lambda: box.setdefault("v", input(prompt)), daemon=True)
-    t.start()
-    while t.is_alive():
-        try:
-            b.pump(0.3)
-        except Exception:
-            time.sleep(0.3)
-    return box.get("v", "").strip()
 
 
 # ───────────────────────── discover ─────────────────────────
@@ -312,20 +312,33 @@ def by_path(data, path: list) -> list:
     return []
 
 
-def cmd_discover(_args) -> None:
+def guess_lesson_id(captured: list[dict]) -> str | None:
+    """피드백·AI 분석 같은 요청 주소에 공통으로 들어 있는 숫자 = 수업 번호."""
+    from collections import Counter
+    cnt = Counter()
+    for c in captured:
+        if any(p.search(c["url"]) for p in ENDPOINT_KEYS.values()):
+            for n in set(re.findall(r"(?<![\d.])(\d{5,})(?![\d.])", c["url"].split("?")[0])):
+                cnt[n] += 1
+    return cnt.most_common(1)[0][0] if cnt else None
+
+
+def cmd_discover(args) -> None:
     b = Browser(headless=False)
     try:
         if not b.ensure_login(interactive=True):
             sys.exit("로그인이 안 됐어요. setup 부터 해 주세요.")
-        print("\n브라우저에서 이렇게 해 주세요:")
-        print("  1) 리뷰 페이지에서 이전 달로 한 번 넘겼다가 다시 돌아오기")
-        print("  2) 수업 하나를 골라 피드백·AI 분석·수업 노트 탭을 모두 열어 보기")
-        print("     (꼭 이 프로그램이 띄운 브라우저 창에서 해 주세요)")
-        lesson_id = wait_for_enter(b, "\n다 했으면 그 수업 번호(주소에 있는 숫자, 예: 3168535)를 입력하고 Enter: ")
-        b.pump(2)
+        print("\n이 프로그램이 띄운 브라우저 창에서 이렇게 해 주세요:")
+        print("  1) 리뷰 페이지에서 이전 달로 한 번 넘겼다가 다시 이번 달로 돌아오기")
+        print("  2) 수업 하나를 골라 피드백 · AI 분석 · 수업 노트 탭을 하나씩 모두 눌러 보기")
+        print("  3) 다 했으면 브라우저 창을 닫기 (X)  ← 창을 닫으면 자동으로 정리돼요")
+        b.wait_until_closed()
     finally:
         captured = list(b.captured)
         b.close()
+
+    lesson_id = args.lesson or guess_lesson_id(captured)
+    print(f"\n수업 번호: {lesson_id or '(못 찾음)'}")
 
     cfg = {"lesson_endpoints": {}}  # discover 할 때마다 새로 찾기
     eps = cfg["lesson_endpoints"]
@@ -591,7 +604,8 @@ def main() -> None:
     p = argparse.ArgumentParser(description="링글 수업 기록 자동 동기화")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("setup", help="처음 한 번: 카카오 로그인")
-    sub.add_parser("discover", help="처음 한 번: 요청 주소 자동 수집")
+    d = sub.add_parser("discover", help="처음 한 번: 요청 주소 자동 수집")
+    d.add_argument("--lesson", help="수업 번호 (보통은 자동으로 찾음)")
     s = sub.add_parser("sync", help="새 수업 가져오기")
     s.add_argument("--from", dest="start", help="YYYY-MM 부터 전부 (지난 기록 가져오기)")
     s.add_argument("--show", action="store_true", help="브라우저 창 보이기")
