@@ -151,37 +151,84 @@ class Browser:
             self._pw.stop()
 
     # ── 로그인 ──
-    def logged_in(self) -> bool:
-        url = self.page.url
-        if re.search(r"login|sign_?in|auth", url, re.I):
-            return False
-        return "/portal/" in url
+    def pump(self, seconds: float) -> None:
+        """브라우저 이벤트(요청 기록)를 처리하면서 기다리기."""
+        self.page.wait_for_timeout(int(seconds * 1000))
+
+    def goto(self, url: str) -> None:
+        # 링글은 백그라운드 통신이 계속돼서 networkidle 을 기다리면 시간 초과가 나요.
+        try:
+            self.page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+        except Exception as e:
+            log(f"페이지 열기 지연: {e.__class__.__name__}")
+
+    def api_status(self) -> int | None:
+        """페이지가 부른 api.ringleplus.com 응답으로 로그인 여부 판단."""
+        for c in reversed(self.captured):
+            if "api.ringleplus.com" in c["url"]:
+                return c["status"]
+        return None
+
+    def logged_in(self, wait: float = 20) -> bool:
+        end = time.time() + wait
+        while time.time() < end:
+            if re.search(r"login|sign_?in|signin|kauth\.kakao", self.page.url, re.I):
+                return False
+            st = self.api_status()
+            if st is not None and 200 <= st < 300:
+                return True
+            if st in (401, 403):
+                return False
+            self.pump(0.5)
+        return False
+
+    def try_kakao(self) -> None:
+        selectors = [
+            "text=/카카오/", "[alt*='카카오']", "[alt*='kakao' i]", "a[href*='kakao']",
+            "button[class*='kakao' i]", "[class*='kakao' i]",
+        ]
+        if "login" not in self.page.url.lower():
+            self.goto("https://www.ringleplus.com/ko/student/landing/home")
+            self.pump(2)
+            for txt in ("로그인", "Log in", "Login"):
+                loc = self.page.get_by_text(txt, exact=True)
+                if loc.count():
+                    loc.first.click()
+                    self.pump(2)
+                    break
+        for sel in selectors:
+            loc = self.page.locator(sel)
+            if loc.count():
+                loc.first.click(timeout=10_000)
+                self.page.wait_for_url(re.compile(r"www\.ringleplus\.com/(?!.*login)"), timeout=60_000)
+                return
+        raise RuntimeError(f"카카오 로그인 버튼을 못 찾았어요 (현재 주소: {self.page.url})")
 
     def ensure_login(self, interactive: bool = False) -> bool:
         today = dt.date.today()
-        self.page.goto(REVIEW_URL.format(year=today.year, month=today.month), wait_until="networkidle")
+        review = REVIEW_URL.format(year=today.year, month=today.month)
+        self.goto(review)
         if self.logged_in():
             return True
         log("링글 로그인이 풀려 있어요 → 카카오 로그인 버튼으로 다시 들어가 볼게요.")
         try:
-            btn = self.page.get_by_text(re.compile("카카오")).first
-            btn.click(timeout=10_000)
-            self.page.wait_for_url(re.compile(r"ringleplus\.com/.*/portal/"), timeout=60_000)
-            self.page.goto(REVIEW_URL.format(year=today.year, month=today.month), wait_until="networkidle")
+            self.try_kakao()
+            self.goto(review)
         except Exception as e:
-            log(f"자동 재로그인 실패: {e}")
+            log(f"자동 재로그인 실패: {str(e).splitlines()[0]}")
         if self.logged_in():
             return True
         if interactive:
-            print("\n브라우저 창에서 카카오로 링글에 로그인해 주세요. 리뷰 페이지가 보이면 여기서 Enter.")
-            input()
-            return self.logged_in() or "/portal/" in self.page.url
+            wait_for_enter(self, "\n브라우저 창에서 카카오로 링글에 로그인하고 수업 리뷰 페이지를 열어 주세요. 다 되면 여기서 Enter: ")
+            self.goto(review)
+            return self.logged_in()
         return False
 
     # ── API ──
     def get_json(self, url: str):
         host = urlsplit(url).netloc
-        headers = dict(self.auth.get(host) or self.auth.get("www.ringleplus.com") or {})
+        headers = dict(self.auth.get(host) or self.auth.get("api.ringleplus.com")
+                       or next(iter(self.auth.values()), {}))
         r = self.ctx.request.get(url, headers=headers, timeout=30_000)
         if r.status in (401, 403):
             raise PermissionError(f"{r.status} {url}")
@@ -191,6 +238,20 @@ class Browser:
             return r.json()
         except Exception:
             return {"_raw_text": r.text()}
+
+
+def wait_for_enter(b: "Browser", prompt: str) -> str:
+    """사용자 입력을 기다리는 동안에도 브라우저 요청을 계속 기록합니다."""
+    import threading
+    box: dict = {}
+    t = threading.Thread(target=lambda: box.setdefault("v", input(prompt)), daemon=True)
+    t.start()
+    while t.is_alive():
+        try:
+            b.pump(0.3)
+        except Exception:
+            time.sleep(0.3)
+    return box.get("v", "").strip()
 
 
 # ───────────────────────── discover ─────────────────────────
@@ -222,6 +283,35 @@ def find_values(data, key_re: re.Pattern, out: list) -> list:
     return out
 
 
+def find_path(data, target: str, path=None):
+    """target 값이 들어 있는 경로. 배열 위치는 '*' 로 일반화."""
+    path = path or []
+    if isinstance(data, dict):
+        for k, v in data.items():
+            if not isinstance(v, (dict, list)) and str(v) == target:
+                return path + [k]
+            r = find_path(v, target, path + [k])
+            if r:
+                return r
+    elif isinstance(data, list):
+        for x in data:
+            r = find_path(x, target, path + ["*"])
+            if r:
+                return r
+    return None
+
+
+def by_path(data, path: list) -> list:
+    if not path:
+        return [data]
+    head, rest = path[0], path[1:]
+    if head == "*":
+        return [v for x in (data if isinstance(data, list) else []) for v in by_path(x, rest)]
+    if isinstance(data, dict) and head in data:
+        return by_path(data[head], rest)
+    return []
+
+
 def cmd_discover(_args) -> None:
     b = Browser(headless=False)
     try:
@@ -230,14 +320,15 @@ def cmd_discover(_args) -> None:
         print("\n브라우저에서 이렇게 해 주세요:")
         print("  1) 리뷰 페이지에서 이전 달로 한 번 넘겼다가 다시 돌아오기")
         print("  2) 수업 하나를 골라 피드백·AI 분석·수업 노트 탭을 모두 열어 보기")
-        lesson_id = input("\n다 했으면 그 수업 번호(주소에 있는 숫자, 예: 3168535)를 입력하고 Enter: ").strip()
-        time.sleep(2)
+        print("     (꼭 이 프로그램이 띄운 브라우저 창에서 해 주세요)")
+        lesson_id = wait_for_enter(b, "\n다 했으면 그 수업 번호(주소에 있는 숫자, 예: 3168535)를 입력하고 Enter: ")
+        b.pump(2)
     finally:
         captured = list(b.captured)
         b.close()
 
-    cfg = load_json(CONFIG, {})
-    eps = cfg.setdefault("lesson_endpoints", {})
+    cfg = {"lesson_endpoints": {}}  # discover 할 때마다 새로 찾기
+    eps = cfg["lesson_endpoints"]
     seen = []
     for c in captured:
         url = c["url"]
@@ -247,21 +338,14 @@ def cmd_discover(_args) -> None:
                 if pat.search(url) and name not in eps:
                     eps[name] = templatize(url, lesson_id)
         elif lesson_id and c["body"] is not None and lesson_id in json.dumps(c["body"]) \
-                and re.search(r"[?&]month=", url) and "list_url" not in cfg:
+                and re.search(r"[?&]month=", url) and "list_url" not in cfg \
+                and not any(p.search(url) for p in ENDPOINT_KEYS.values()):
             cfg["list_url"] = month_templatize(url)
-            # 목록 응답 안에서 수업 번호가 들어 있는 키 이름 찾기
-            keys = set()
-            def walk(d):
-                if isinstance(d, dict):
-                    for k, v in d.items():
-                        if str(v) == lesson_id:
-                            keys.add(k)
-                        walk(v)
-                elif isinstance(d, list):
-                    for x in d:
-                        walk(x)
-            walk(c["body"])
-            cfg["list_id_keys"] = sorted(keys) or ["lesson_id", "id"]
+            # 목록 응답 안에서 수업 번호가 들어 있는 위치(경로) 기억 — 튜터·교재 id와 헷갈리지 않게
+            path = find_path(c["body"], lesson_id)
+            if path:
+                cfg["list_id_path"] = path
+                cfg.pop("list_id_keys", None)
 
     save_json(CONFIG, cfg)
     (HOME / "discover_urls.txt").write_text("\n".join(dict.fromkeys(seen)), encoding="utf-8")
@@ -279,8 +363,12 @@ def cmd_discover(_args) -> None:
 def list_lessons(b: Browser, cfg: dict, y: int, m: int) -> list[str]:
     url = cfg["list_url"].format(year=y, month=m)
     data = b.get_json(url)
-    key_re = re.compile("|".join(map(re.escape, cfg.get("list_id_keys", ["lesson_id"]))))
-    return list(dict.fromkeys(find_values(data, key_re, [])))
+    if cfg.get("list_id_path"):
+        ids = [str(v) for v in by_path(data, cfg["list_id_path"]) if str(v).isdigit()]
+    else:
+        key_re = re.compile("|".join(map(re.escape, cfg.get("list_id_keys", ["lesson_id"]))))
+        ids = find_values(data, key_re, [])
+    return list(dict.fromkeys(ids))
 
 
 def fetch_lesson(b: Browser, cfg: dict, lesson_id: str) -> bool:
