@@ -47,8 +47,22 @@ ENDPOINT_KEYS = {
     "feedback": re.compile(r"feedback"),
     "highlights": re.compile(r"highlights"),
     "analysis_components": re.compile(r"analysis_components"),
-    "notes": re.compile(r"docs\.ringleplus\.com"),
 }
+
+# 2026-11 discover 로 확인한 링글 API (수업마다 받는 것)
+API = "https://api.ringleplus.com/api"
+LESSON_ENDPOINTS = {
+    "lesson": API + "/v4/student/lesson/past/{lesson_id}/web",               # 수업 정보·교재
+    "tutor_feedback": API + "/v5/student/lessons/{lesson_id}/feedback",      # 튜터 피드백
+    "compliments": API + "/v5/student/lessons/{lesson_id}/compliments",      # 튜터 칭찬
+    "ai_feedback": API + "/v5/caf/lessons/{lesson_id}/feedback",             # AI 분석
+    "highlights": API + "/v5/caf/lessons/{lesson_id}/highlights",
+    "analysis_components": API + "/v5/caf/lessons/{lesson_id}/analysis_components",
+    "fluency": API + "/v5/student/focus/lessons/{lesson_id}/fluency",
+    "script": API + "/v4/student/lesson_record/{lesson_id}/script",          # 대화 스크립트 (md 에는 안 넣음)
+}
+REQUIRED = {"lesson"}  # 나머지는 예전 수업엔 없을 수 있어서 실패해도 넘어감
+DEFAULT_LIST_URL = API + "/v5/student/lessons/past?year={year}&month={month}&type=entire"
 
 
 # ───────────────────────── 공통 ─────────────────────────
@@ -360,11 +374,12 @@ def cmd_discover(args) -> None:
                 cfg["list_id_path"] = path
                 cfg.pop("list_id_keys", None)
 
+    cfg.pop("lesson_endpoints", None)  # 수업별 주소는 코드의 LESSON_ENDPOINTS 사용
     save_json(CONFIG, cfg)
     (HOME / "discover_urls.txt").write_text("\n".join(dict.fromkeys(seen)), encoding="utf-8")
-    print("\n찾은 주소 (ringle/config.json 에 저장):")
+    print("\n찾은 수업 목록 주소 (ringle/config.json 에 저장):")
     print(json.dumps(cfg, ensure_ascii=False, indent=2))
-    missing = [k for k in ENDPOINT_KEYS if k not in eps] + ([] if "list_url" in cfg else ["list_url"])
+    missing = [] if "list_url" in cfg else ["list_url"]
     if missing:
         print(f"\n⚠️  못 찾은 것: {', '.join(missing)}")
         print(f"   전체 요청 목록: {HOME / 'discover_urls.txt'}  (토큰은 들어 있지 않아요)")
@@ -388,7 +403,8 @@ def fetch_lesson(b: Browser, cfg: dict, lesson_id: str) -> bool:
     out = RAW / lesson_id
     out.mkdir(parents=True, exist_ok=True)
     ok = True
-    for name, tmpl in cfg["lesson_endpoints"].items():
+    endpoints = {**LESSON_ENDPOINTS, **cfg.get("lesson_endpoints_override", {})}
+    for name, tmpl in endpoints.items():
         dest = out / f"{name}.json"
         if dest.exists():
             continue
@@ -398,7 +414,8 @@ def fetch_lesson(b: Browser, cfg: dict, lesson_id: str) -> bool:
             raise
         except Exception as e:
             log(f"  ! {lesson_id} {name}: {e}")
-            ok = name == "notes" and ok  # 노트가 없는 수업도 있어서 노트 실패는 넘어감
+            if name in REQUIRED:
+                ok = False
         time.sleep(DELAY)
     return ok
 
@@ -426,8 +443,11 @@ def commit_and_push(new_ids: list[str]) -> None:
 
 def cmd_sync(args) -> None:
     cfg = load_json(CONFIG, {})
-    if "list_url" not in cfg or not cfg.get("lesson_endpoints"):
-        sys.exit("ringle/config.json 이 비어 있어요. discover 를 먼저 해 주세요.")
+    cfg.setdefault("list_url", DEFAULT_LIST_URL)
+    if cfg.pop("lesson_endpoints", None) is not None:  # 예전 discover 결과 정리
+        save_json(CONFIG, cfg)
+    if not cfg.get("list_id_path") and not cfg.get("list_id_keys"):
+        sys.exit("ringle/config.json 에 수업 목록 정보가 없어요. discover 를 먼저 해 주세요.")
     state = load_json(STATE, {"done": []})
     done = set(state["done"])
 
@@ -559,10 +579,12 @@ def to_md(data, depth: int = 0) -> list[str]:
 
 
 SECTIONS = [
-    ("feedback", "튜터 피드백 (교정 전 → 후)"),
+    ("tutor_feedback", "튜터 피드백"),
+    ("compliments", "튜터 칭찬"),
+    ("ai_feedback", "AI 분석 — 피드백"),
     ("highlights", "AI 분석 — 하이라이트"),
     ("analysis_components", "AI 분석 — 세부 항목"),
-    ("notes", "수업 노트"),
+    ("fluency", "AI 분석 — 유창성"),
 ]
 
 
